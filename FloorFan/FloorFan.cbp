@@ -45,6 +45,10 @@
 			<Add directory="D:/Apps/CodeBlocks/MinGW/lib" />
 		</Linker>
 		<Unit filename="main.cpp" />
+		<Unit filename="texture/chanquat.png" />
+		<Unit filename="texture/dequat.png" />
+		<Unit filename="texture/dongco.png" />
+		<Unit filename="texture/floor.jpg" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>

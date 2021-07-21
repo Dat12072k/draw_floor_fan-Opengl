@@ -23,7 +23,8 @@ int t_width = 0, t_height = 0, t_channels = 0;
 // fan state
 bool isfanon = false;
 bool isRotale = false;
-
+GLint fanPart1, fanPart2, fanPart3;
+bool isLightMove = false, lightState = true;
 // beizer pos to draw fan wing
  GLfloat ctrlpoints[8][3] ={
 {4,6,0},
@@ -35,6 +36,39 @@ bool isRotale = false;
 {0.5,3.5,0},
 {4,6,0},
 };
+
+
+
+
+void shadowMatrix(GLfloat shadowMat[4][4],GLfloat groundplane[4],GLfloat lightpos[4])
+{
+  GLfloat dot;
+
+  /* Find dot product between light position vector and ground plane normal.*/
+    dot = groundplane[0] * lightpos[0] + groundplane[1] * lightpos[1]
+            + groundplane[2] * lightpos[2] + groundplane[3] * lightpos[3];
+
+    shadowMat[0][0] = dot - lightpos[0] * groundplane[0];
+    shadowMat[1][0] = 0.f - lightpos[0] * groundplane[1];
+    shadowMat[2][0] = 0.f - lightpos[0] * groundplane[2];
+    shadowMat[3][0] = 0.f - lightpos[0] * groundplane[3];
+
+    shadowMat[0][1] = 0.f - lightpos[1] * groundplane[0];
+    shadowMat[1][1] = dot - lightpos[1] * groundplane[1];
+    shadowMat[2][1] = 0.f - lightpos[1] * groundplane[2];
+    shadowMat[3][1] = 0.f - lightpos[1] * groundplane[3];
+
+    shadowMat[0][2] = 0.f - lightpos[2] * groundplane[0];
+    shadowMat[1][2] = 0.f - lightpos[2] * groundplane[1];
+    shadowMat[2][2] = dot - lightpos[2] * groundplane[2];
+    shadowMat[3][2] = 0.f - lightpos[2] * groundplane[3];
+
+    shadowMat[0][3] = 0.f - lightpos[3] * groundplane[0];
+    shadowMat[1][3] = 0.f - lightpos[3] * groundplane[1];
+    shadowMat[2][3] = 0.f - lightpos[3] * groundplane[2];
+    shadowMat[3][3] = dot - lightpos[3] * groundplane[3];
+
+}
 
 
 void drawCylinder(int nmax, int nmin, float height, float radius)
@@ -121,7 +155,7 @@ void initLightSorce(){
     GLfloat light1_diffuse [] = {1.0, 1.0, 1.0, 1.0};
     GLfloat light1_specular [] = {1.0, 1.0, 1.0, 1.0};
     GLfloat light1_position [] = {0,0,10};
-    GLfloat spot_direction [3] = {0.0, 0, 1};
+    GLfloat spot_direction [3] = {0, 0, 1};
 
     glLightfv (GL_LIGHT1, GL_AMBIENT, light1_ambient);
     glLightfv (GL_LIGHT1, GL_DIFFUSE, light1_diffuse);
@@ -138,44 +172,37 @@ void initLightSorce(){
     glEnable (GL_LIGHT1);
 }
 
+void initFog(){
+    glEnable(GL_FOG);
+    GLfloat fogColor[4] = {0.5, 0.5, 0.5, 1.0};
+    glFogi (GL_FOG_MODE, GL_EXP);
+    glFogfv (GL_FOG_COLOR, fogColor);
+    glFogf (GL_FOG_DENSITY, 0.05);
+    glHint (GL_FOG_HINT, GL_DONT_CARE);
+    glFogf (GL_FOG_START, 1.0);
+    glFogf (GL_FOG_END, 5.0);
+}
+
 void initMaterial(GLfloat amdiff[], GLfloat spec[]){
     glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, amdiff);
     glMaterialfv(GL_FRONT, GL_SPECULAR, spec);
     glMaterialf(GL_FRONT, GL_SHININESS, 50.0);
 }
 
-void init(void)
-{
-    glClearColor(0.0, 0.0, 0.0, 0.0);
-    glShadeModel(GL_FLAT);
-    glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, &ctrlpoints[0][0]);
-    glEnable(GL_MAP1_VERTEX_3);
-    glEnable(GL_DEPTH_TEST);
-    glShadeModel (GL_SMOOTH);
-    initLightSorce();
 
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-}
 
 
 void canh(){
-    glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 8, &ctrlpoints[0][0]);
-    glEnable(GL_MAP1_VERTEX_3);
+
     glRotated(-12,1,1,1);
     glTranslated(-4.5,-6,0);
     glColor3f(1, 1, 1);
+
     glBegin(GL_POLYGON);
     for (int i = 0; i <= 60; i++)
         glEvalCoord1d(i/60.0);
     glEnd();
-    glDisable(GL_MAP1_VERTEX_3);
+
 }
 
 
@@ -191,7 +218,7 @@ void dequat(){
     glPushMatrix();
     glRotated(90,1,0,0);
     glTranslated(0,0,-1.001);
-    loadTexture("D:/OpenGlApp/FloorFan/texture/dequat.png",8);
+    loadTexture("D:/OpenGlApp/FloorFan/texture/dequat.png",8);  // config here to show texture
     glPopMatrix();
     glScaled(4,1,4);
     glutSolidCube(2);
@@ -203,7 +230,7 @@ void nutbam(){
     glPushMatrix();
     glScaled(1,1,1.5);
     glColor3d(0.15,0.2,0.57);
-    glTranslated(-2,1.3,-1.5);
+    glTranslated(-2,1.3,-2.82);
 
     glPushMatrix();
     glPushMatrix();
@@ -237,11 +264,12 @@ void nutbam(){
 void chanquat(){
     glTranslated(0,0,2);
     glPushMatrix();
-    loadCylinderTexture("D:/OpenGlApp/FloorFan/texture/chanquat.png");
+    loadCylinderTexture("D:/OpenGlApp/FloorFan/texture/chanquat.png");  // config here to show texture
     glTranslated(0,4,0);
     glRotated(-90,1,0,0);
     drawCylinder(24,24,8,0.75);
     glPopMatrix();
+    loadCylinderTexture("D:/OpenGlApp/FloorFan/texture/floor.jpg"); // config here to show texture
 }
 
 
@@ -256,7 +284,8 @@ void cantocnang(){
 
     glColor3f(0.2,0.7,0.4);
     glPushMatrix();
-    glTranslated(0,2.5+swing_control,1);
+
+    glTranslated(0,11.5+swing_control,1);
     glRotated(90,1,0,0);
     glutSolidCylinder(0.2,2,24,24);
     glColor3f(0.7,0.3,0.4);
@@ -269,11 +298,7 @@ bool swing_state = false;
 bool prev_swing_state = swing_state;
 
 void dongco(){
-
-    glRotated(swing,0,1,0);
-    glTranslated(0,9,0);
-    cantocnang();
-    glTranslated(0,0,-2);
+    glTranslated(0,9,-2);
     glColor3d(0,1,0);
 
     GLfloat amdiff[] = {0.45,0.45,0.45,0.7};
@@ -347,42 +372,136 @@ void canhquat(){
 
 
 void fan(){
-    dequat();
+    glTranslated(0,7,0);
+    glCallList(fanPart1);
     nutbam();
-    chanquat();
-    dongco();
-    longquat();
-    canhquat();
+    glRotated(swing,0,1,0);
+    cantocnang();
+    glCallList(fanPart2);
+    glRotated(fanspeed,0,0,1);
+    glCallList(fanPart3);
 }
+
+void drawFloor(){
+    glDisable(GL_LIGHTING);
+    glEnable(GL_TEXTURE_2D);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0,0); glVertex3f(-35,0,-35.0);
+    glTexCoord2f(0,10); glVertex3f(35.0,0, -35.0);
+    glTexCoord2f(10,10); glVertex3f(35.0,0, 35.0);
+    glTexCoord2f(10,0); glVertex3f(-35.0,0, 35.0);
+    glEnd();
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_LIGHTING);
+}
+
+
+
 
 void reshape(int w,int h)
 {
     glViewport(0,0,w,h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective (60, (GLfloat)w / (GLfloat)h, 0.1, 100.0);
-    gluLookAt(0,0,20,0,0,0,0,1,0);
+    gluPerspective (60, (GLfloat)w / (GLfloat)h, 1, 500.0);
+    gluLookAt(0,30,30,0,7,0,0,1,0);
     glMatrixMode(GL_MODELVIEW);
 }
 
-void display()
-{
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-    glLoadIdentity();
-
-
-    GLfloat position[] = { 8,8,0 };
-    glLightfv(GL_LIGHT0, GL_POSITION, position);
-
+void moveCamera(){
     glTranslated(0,0,zoom_z);
     glRotated (rotate_y,1,0,0);
     glRotated (rotate_x,0,1,0);
+}
+
+static GLfloat floorShadow[4][4];
+GLfloat lightPosition[4] = {15,15,15,0};
+float lightRadius = 15*sqrt(2);
+GLfloat floorMatrix[4] = {0,70*70,0,-0};
+void drawShadow(){
+
+    shadowMatrix(floorShadow, floorMatrix, lightPosition);
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_LIGHTING);
+    glColor4f(0.0, 0.0, 0.0, 0.9);
+    glPushMatrix();
+    glTranslated(0,0.001,0);
+
+    glMultMatrixf((GLfloat*) floorShadow);
 
     fan();
 
-    glutSwapBuffers();
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glPopMatrix();
 }
+
+void drawReflection(){
+
+    glEnable(GL_STENCIL_TEST);
+	glColorMask(0, 0, 0, 0);
+	glDisable(GL_DEPTH_TEST);
+	glStencilFunc(GL_ALWAYS, 1, 1);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+	drawFloor();
+    glDisable(GL_CULL_FACE);
+
+    glColorMask(1, 1, 1, 1);
+    glEnable(GL_DEPTH_TEST);
+    glStencilFunc(GL_EQUAL, 1, 1);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+	glPushMatrix();
+	glScaled(1,-1,1);
+	fan();
+
+	glPopMatrix();
+
+	glDisable(GL_STENCIL_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glColor4f(0.5, 0.5, 0.5, 0.7f);
+	drawFloor();
+	glDisable(GL_BLEND);
+}
+
+
+
+
+void display()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+    glLoadIdentity();
+
+    glLightfv (GL_LIGHT0, GL_POSITION, lightPosition);
+
+    moveCamera();
+    glPushMatrix();
+    fan();
+    glPopMatrix();
+
+
+    // draw light source position
+    glPushMatrix();
+    glTranslatef(lightPosition[0],lightPosition[1],lightPosition[2]);
+    glutSolidSphere(1,24,24);
+    glPopMatrix();
+
+    drawReflection();
+
+	drawShadow();
+
+	glutSwapBuffers();
+}
+
+
+
 
 void keyboard(unsigned char key, int x, int y){
 
@@ -433,7 +552,8 @@ void keyboard(unsigned char key, int x, int y){
         twobtn = 0;
         swing_state = prev_swing_state;
         break;
-
+    case 'l':
+        isLightMove = !isLightMove;
     }
 }
 
@@ -502,15 +622,75 @@ void timer(int){
         fanspeed = (fanspeed +20) % 360 ;
         break;
     }
+
+
+    if (isLightMove) {
+        if (abs(lightPosition[0]) > lightRadius-lightRadius/100)
+        lightState = !lightState;
+
+        if (lightState) {
+            lightPosition[0] -= lightRadius/100;
+            lightPosition[2] = sqrt(lightRadius*lightRadius - lightPosition[0]*lightPosition[0]);
+        } else {
+            lightPosition[0] += lightRadius/100;
+            lightPosition[2] = -sqrt(lightRadius*lightRadius - lightPosition[0]*lightPosition[0]);
+        }
+    }
 }
 
+
+void init(void)
+{
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glShadeModel(GL_FLAT);
+    glEnable(GL_DEPTH_TEST);
+    glShadeModel (GL_SMOOTH);
+
+    glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 8, &ctrlpoints[0][0]);
+    glEnable(GL_MAP1_VERTEX_3);
+    //glDisable(GL_MAP1_VERTEX_3);
+
+    initLightSorce();
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+
+
+
+
+    initFog();
+
+    fanPart1 = glGenLists (1);
+    glNewList (fanPart1, GL_COMPILE);
+    dequat();
+    chanquat();
+    glEndList ();
+
+    fanPart2 = glGenLists (1);
+    glNewList (fanPart2, GL_COMPILE);
+    dongco();
+    longquat();
+    glEndList ();
+
+    fanPart3 = glGenLists (1);
+    glNewList (fanPart3, GL_COMPILE);
+    canhquat();
+    glEndList ();
+}
 
 
 int main(int argc, char **argv)
 {
 
     glutInit(&argc,argv);
-    glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGB|GLUT_DEPTH);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_STENCIL);
     glutInitWindowSize(800,450);
     glutInitWindowPosition(20,20);
     glutCreateWindow("Floor Fan");
